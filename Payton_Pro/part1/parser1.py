@@ -1,132 +1,108 @@
-from abc import ABC
+from typing import Union
+from abc import ABC, abstractmethod
 from numpy import double
-from abc import ABC,abstractmethod
 from collections import deque
 import re
 
-class Expression(ABC): 
+class Expression(ABC):
     @abstractmethod
-    def calc(self) -> double: 
+    def calc(self):
         pass
 
-class Num(Expression): 
-    def __init__(self, value): 
-        self.value = value  
+class Num(Expression):
+    def __init__(self, value):
+        self.value = value
 
-    def calc(self) -> double: 
-        return double(self.value) 
+    def calc(self):
+        return double(self.value)
 
-class BinExp(Expression): 
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
+class BinExp(Expression):
+    def __init__(self, First, Latest):
+        self.First = First
+        self.Latest = Latest
 
 class Plus(BinExp):
-    def calc(self) -> double:
-        return self.left.calc() + self.right.calc()
+    def calc(self):
+        return self.First.calc() + self.Latest.calc()
 
 class Minus(BinExp):
-    def calc(self) -> double:
-        return self.left.calc() - self.right.calc()
+    def calc(self):
+        return self.First.calc() - self.Latest.calc()
 
 class Mul(BinExp):
-    def calc(self) -> double:
-        return self.left.calc() * self.right.calc()
+    def calc(self):
+        return self.First.calc() * self.Latest.calc()
 
 class Div(BinExp):
-    def calc(self) -> double:
-        return self.left.calc() / self.right.calc()
+    def calc(self):
+        return self.First.calc() / self.Latest.calc()
 
-def isNumber(n) -> bool:    
+def isNumber(n) -> bool:
     if ('0' <= n <= '99'):
        return True
-    else:
-        return False
+    return False
     
 def parser(expression: str):
-    queue = deque() 
-    stack = deque()
-
-
-    priority = {
-        '+': 0,
-        '-': 0,
-        '*': 1,
-        '/': 1
-    }
-
+    priority = {'+': 0, '-': 0, '*': 1, '/': 1} # קביעת מה לפני מה
+    queueNumbers = deque()
+    stackSign = deque()
+    
     expression = expression.replace("(-", "(0-")
-    split = re.findall(r'[()+\-*/]|(?:\d+\.\d+|\d+)', expression)
+    transition = re.findall(r'[()+\-*/]|(?:\d+\.\d+|\d+)', expression)
     
-    for i in split:
-        if (isNumber(i)):
-            queue.append(float(i))
-
-        elif (i == '('):
-            stack.append(i)
-
-        elif ( i == ')' and 1 < len(queue)):
-            while (stack and stack[-1] != '('):
-                right = Num(queue[-1])
-                left = Num(queue[-2])
-                queue.pop()
-                queue.pop()
-            
-                if (stack[-1] == '/'):
-                    queue.append(Div(left, right).calc())
-
-                elif (stack[-1] == '*'):
-                    queue.append(Mul(left, right).calc())
-
-                elif (stack[-1] == '+'):
-                    queue.append(Plus(left, right).calc())
-
-                elif (stack[-1] == '-'):
-                    queue.append(Minus(left, right).calc())
-                stack.pop()
+    for i in transition:
+        if isNumber(i):
+            queueNumbers.append(Num(double(i)))  # הופך את המספר לאובייקט מסוג NUM queueNumbersומכניס ל
+        elif i == '(':
+            stackSign.append(i)
+        elif i == ')' and 1 < len(queueNumbers):
+            while stackSign and stackSign[-1] != '(':
+                Latest = queueNumbers.pop()
+                First = queueNumbers.pop()
+                sign = stackSign.pop()
                 
-            if(stack and stack[-1] == '('):
-                stack.pop()
-        
+                if sign == '/':
+                    queueNumbers.append(Div(First, Latest))
+                elif sign == '*':
+                    queueNumbers.append(Mul(First, Latest))
+                elif sign == '+':
+                    queueNumbers.append(Plus(First, Latest))
+                elif sign == '-':
+                    queueNumbers.append(Minus(First, Latest))
+            if stackSign and stackSign[-1] == '(':
+                stackSign.pop()
         else:
-            while ((stack) and (stack[-1] != '(' ) and (not isNumber(i)) and (priority[i] <= priority[stack[-1]])):
-                right = Num(queue[-1])
-                left = Num(queue[-2])
-                queue.pop()
-                queue.pop()
-            
-                if (stack[-1] == '/'):
-                    queue.append(Div(left, right).calc())
-
-                elif (stack[-1] == '*'):
-                    queue.append(Mul(left, right).calc())
-
-                elif (stack[-1] == '+'):
-                    queue.append(Plus(left, right).calc())
-
-                elif (stack[-1] == '-'):
-                    queue.append(Minus(left, right).calc())
-                stack.pop()
+            while not isNumber(i) and  stackSign and stackSign[-1] != '(' and priority[i] <= priority[stackSign[-1]]:
+                Latest = queueNumbers.pop()
+                # In the provided code, the variable `First` is being used as a placeholder to store
+                # the First operand of a binary expression when parsing the input expression. It is
+                # used in the context of evaluating binary expressions (such as addition, subtraction,
+                # multiplication, and division) within the parser function.
+                First = queueNumbers.pop()
+                sign = stackSign.pop()
                 
-            stack.append(i)
+                if sign == '/':
+                    queueNumbers.append(Div(First, Latest))
+                elif sign == '*':
+                    queueNumbers.append(Mul(First, Latest))
+                elif sign == '+':
+                    queueNumbers.append(Plus(First, Latest))
+                elif sign == '-':
+                    queueNumbers.append(Minus(First, Latest))
+            stackSign.append(i)
 
-    while (stack and 1 < len(queue)):
-        right = Num(queue[-1])
-        left = Num(queue[-2])
-        queue.pop()
-        queue.pop()
-    
-        if (stack[-1] == '/'):
-            queue.append(Div(left, right).calc())
+    while stackSign and 1 < len(queueNumbers):
+        Latest = queueNumbers.pop()
+        First = queueNumbers.pop()
+        sign = stackSign.pop()
+        
+        if sign == '/':
+            queueNumbers.append(Div(First, Latest))
+        elif sign == '*':
+            queueNumbers.append(Mul(First, Latest))
+        elif sign == '+':
+            queueNumbers.append(Plus(First, Latest))
+        elif sign == '-':
+            queueNumbers.append(Minus(First, Latest))
 
-        elif (stack[-1] == '*'):
-            queue.append(Mul(left, right).calc())
-
-        elif (stack[-1] == '+'):
-            queue.append(Plus(left, right).calc())
-
-        elif (stack[-1] == '-'):
-            queue.append(Minus(left, right).calc())
-        stack.pop()
-
-    return queue[0]
+    return queueNumbers[0].calc()  # Return the result of the calculation
